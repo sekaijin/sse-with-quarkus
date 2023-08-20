@@ -6,6 +6,8 @@ import org.acme.eventbus.EventConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -17,14 +19,17 @@ import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseBroadcaster;
 import jakarta.ws.rs.sse.SseEventSink;
 
-public abstract class SseRessource<E> extends EventConsumer<E> {
+public abstract class SseRessource<E> {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(SseRessource.class);
 	protected Builder eventBuilder;
 	protected SseBroadcaster sseBroadcaster;
 	private static long lastId = 0;
-	private List<OutboundSseEvent> events;
-	
+	private List<OutboundSseEvent> cache;
+
+	@Inject
+	EventConsumer<E> eventConsumer;
+
 	public SseRessource(Sse sse, int cacheSize) {
 		super();
 		LOG.info("#init {}", this);
@@ -33,8 +38,12 @@ public abstract class SseRessource<E> extends EventConsumer<E> {
 		sseBroadcaster = sse.newBroadcaster();
 		sseBroadcaster.onClose(this::onClose);
 		sseBroadcaster.onError(this::onError);
-		events = new MemCache<>(cacheSize);
+		cache = new MemCache<>(cacheSize);
+	}
 
+	@PostConstruct
+	public void initConsumer() {
+		eventConsumer.onEvent(this::consume);
 	}
 
 	public SseRessource() {
@@ -53,9 +62,9 @@ public abstract class SseRessource<E> extends EventConsumer<E> {
 
 	protected void consume(E e2) {
 		try {
-			OutboundSseEvent event = eventBuilder.name(address()).id(Long.toString(lastId++))
+			OutboundSseEvent event = eventBuilder.name(eventConsumer.address()).id(Long.toString(lastId++))
 					.mediaType(MediaType.APPLICATION_JSON_TYPE).data(e2).build();
-			events.add(event);
+			cache.add(event);
 
 			sseBroadcaster.broadcast(event);
 		} catch (Exception e) {
@@ -74,10 +83,9 @@ public abstract class SseRessource<E> extends EventConsumer<E> {
 	}
 
 	private void sendPreviousEvents(SseEventSink sseEventSink, int lastEventId) {
-		for (int i = lastEventId; i < events.size(); i++) {
-			sseEventSink.send(events.get(i));
-		}
+		cache.forEach(event -> {
+			sseEventSink.send(event);
+		});
 	}
-
 
 }

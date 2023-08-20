@@ -1,5 +1,7 @@
 package org.acme.eventbus;
 
+import java.util.function.Consumer;
+
 import io.quarkus.logging.Log;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
@@ -13,6 +15,7 @@ public abstract class EventConsumer<E> {
 	@Inject
 	EventBus bus;
 	private MessageConsumer<E> consumer;
+	private Consumer<E> handler;
 
 	public EventConsumer() {
 		super();
@@ -25,27 +28,28 @@ public abstract class EventConsumer<E> {
 
 	@PreDestroy
 	public void releaseConsumer() {
-		consumer.unregister().andThen(a -> {});
+		consumer.unregister().andThen(a -> {
+		});
 	}
 
 	public void consume(Message<E> msg) {
 		try {
-			consume(msg.body());
+			// consume(msg.body());
+			handler.accept(msg.body());
 		} catch (Exception e) {
 			Log.error("Invalid data {}", msg.body(), e);
 		}
 	}
 
 	/**
-	 * consume an E element from vert.x event bus
-	 * @param body
-	 */
-	protected abstract void consume(E body);
-
-	/**
 	 * EventBus address name
+	 * 
 	 * @return
 	 */
-	protected abstract String address();
+	public abstract String address();
+
+	public void onEvent(Consumer<E> handler) {
+		this.handler = handler;
+	}
 
 }

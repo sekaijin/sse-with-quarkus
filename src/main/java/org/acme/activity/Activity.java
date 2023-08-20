@@ -3,6 +3,9 @@ package org.acme.activity;
 import java.time.Instant;
 
 public class Activity {
+
+	public static final String NAME = "activity";
+
 	public String now;
 	public String name;
 	public long number;
