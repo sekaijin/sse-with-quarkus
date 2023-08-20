@@ -26,3 +26,7 @@ During the subscription, the service must return a quantity of data sent before 
 It also sets up the decoupled exchange of data between components. For this it uses Vert.x EventBus.
 
 The exchange takes place on a (bus) address with typed data.
+
+### Thank
+
+inspired by https://github.com/jimbogithub/sse and many other!
