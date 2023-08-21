@@ -1,13 +1,12 @@
 package org.acme.sse;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-import org.acme.eventbus.EventConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -24,13 +23,9 @@ public abstract class SseRessource<E> {
 	protected static final Logger LOG = LoggerFactory.getLogger(SseRessource.class);
 	protected Builder eventBuilder;
 	protected SseBroadcaster sseBroadcaster;
-	private static long lastId = 0;
-	private List<OutboundSseEvent> cache;
+	private Optional<List<OutboundSseEvent>> cache;
 
-	@Inject
-	EventConsumer<E> eventConsumer;
-
-	public SseRessource(Sse sse, int cacheSize) {
+	public SseRessource(Sse sse) {
 		super();
 		LOG.info("#init {}", this);
 
@@ -38,15 +33,14 @@ public abstract class SseRessource<E> {
 		sseBroadcaster = sse.newBroadcaster();
 		sseBroadcaster.onClose(this::onClose);
 		sseBroadcaster.onError(this::onError);
-		cache = new MemCache<>(cacheSize);
+		cache = Optional.ofNullable(null);
 	}
 
-	@PostConstruct
-	public void initConsumer() {
-		eventConsumer.onEvent(this::consume);
-	}
+	protected void setCache(List<OutboundSseEvent> c){
+	   cache = Optional.ofNullable(c);
+   }
 
-	public SseRessource() {
+   public SseRessource() {
 		super();
 	}
 
@@ -56,15 +50,24 @@ public abstract class SseRessource<E> {
 	public void onSubscribe(@Context SseEventSink sseEventSink) {
 		LOG.info("#onSubscribe {} {}", sseEventSink.hashCode(), this);
 		sseBroadcaster.register(sseEventSink);
-		sendPreviousEvents(sseEventSink, 0);
+		sendPreviousEvents(sseEventSink);
 
 	}
+	
+   public OutboundSseEvent buildEvent(E e) {
+      return getEventBuilder().name(getClass().getSimpleName()).id(UUID.randomUUID().toString())
+         .mediaType(MediaType.TEXT_PLAIN_TYPE).data(e).build();
+   }
 
-	protected void consume(E e2) {
+	protected Builder getEventBuilder(){
+      return eventBuilder;
+   }
+
+   protected void broadcast(E e2) {
 		try {
-			OutboundSseEvent event = eventBuilder.name(eventConsumer.address()).id(Long.toString(lastId++))
-					.mediaType(MediaType.APPLICATION_JSON_TYPE).data(e2).build();
-			cache.add(event);
+			OutboundSseEvent event = buildEvent(e2);
+			   
+			cache.ifPresent(c -> c.add(event));
 
 			sseBroadcaster.broadcast(event);
 		} catch (Exception e) {
@@ -82,10 +85,10 @@ public abstract class SseRessource<E> {
 		}
 	}
 
-	private void sendPreviousEvents(SseEventSink sseEventSink, int lastEventId) {
-		cache.forEach(event -> {
+	private void sendPreviousEvents(SseEventSink sseEventSink) {
+		cache.ifPresent( c -> c.forEach(event -> {
 			sseEventSink.send(event);
-		});
+		}));
 	}
 
 }
