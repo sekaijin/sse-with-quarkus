@@ -32,7 +32,7 @@ public class ActivityEventBusSse extends SseRessource<Activity> {
 
    @Override
    public OutboundSseEvent buildEvent(Activity e) {
-      return getEventBuilder().name("activity").id(Long.toString(lastId++))
+      return eventBuilder.name("activity").id(Long.toString(lastId++))
       .mediaType(MediaType.APPLICATION_JSON_TYPE).data(e).build();
    }
 }

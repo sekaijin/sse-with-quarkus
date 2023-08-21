@@ -55,12 +55,8 @@ public abstract class SseRessource<E> {
 	}
 	
    public OutboundSseEvent buildEvent(E e) {
-      return getEventBuilder().name(getClass().getSimpleName()).id(UUID.randomUUID().toString())
+      return eventBuilder.name(getClass().getSimpleName()).id(UUID.randomUUID().toString())
          .mediaType(MediaType.TEXT_PLAIN_TYPE).data(e).build();
-   }
-
-	protected Builder getEventBuilder(){
-      return eventBuilder;
    }
 
    protected void broadcast(E e2) {

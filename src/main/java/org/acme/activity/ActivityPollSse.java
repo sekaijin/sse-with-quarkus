@@ -33,7 +33,7 @@ public class ActivityPollSse extends SseRessource<Activity>
 
    @Override
    public OutboundSseEvent buildEvent(Activity e){
-      return getEventBuilder().name("activity").id(Long.toString(lastId++)).mediaType(MediaType.APPLICATION_JSON_TYPE).data(e)
+      return eventBuilder.name("activity").id(Long.toString(lastId++)).mediaType(MediaType.APPLICATION_JSON_TYPE).data(e)
          .build();
    }
 }
